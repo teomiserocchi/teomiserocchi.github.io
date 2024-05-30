@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital cluster tool</title>
+    <style>
+    /* Stili CSS per la formattazione */
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f2f2f2; /* Grigio chiaro */
+    }
+    input[type="number"], input[type="text"] {
+        width: 150px;
+        margin-right: 10px;
+        margin-bottom: 5px;
+    }
+    .container {
+        display: flex;
+        flex-direction: column;
+    }
+    .hospital {
+        margin-bottom: 20px;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #fff; /* Bianco */
+    }
+    .hospital label {
+        font-weight: bold;
+    }
+    .chart-container {
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: 20px;
+        background-color: #fff; /* Bianco */
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Ombra leggera */
+    }
+    .chart {
+        width: 300px;
+        height: 200px;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    .hospital-info {
+        margin-top: 10px;
+    }
+</style>
+</head>
+<body>
+<img src="logo.png" alt="Energy Analysis" width="150">
+    <h1>Hospital expected energy demand </h1>
+
+
+    <div class="container" id="container"></div>
+
+    <button onclick="addHospital()">Add Hospital</button>
+    <button onclick="calculateEnergyDemand()">Compute Energy Demand</button>
+
+    <div class="chart-container" id="chartContainer">
+        <!-- I grafici verranno aggiunti qui -->
+    </div>
+
+    <div id="energyDemandClass"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        var colors = ['#28a745', '#ffc107', '#f0e68c', '#90ee90', '#6b8e23', '#9acd32', '#808000', '#fffacd', '#28a745', '#ffc107'];
+
+        // Funzione per aggiungere un ospedale
+        function addHospital() {
+            var container = document.getElementById("container");
+            var hospitalCount = container.children.length + 1;
+
+            var div = document.createElement("div");
+            div.className = "hospital";
+            div.innerHTML = "<h3>Hospital " + hospitalCount + "</h3>";
+
+            var nameInput = document.createElement("input");
+            nameInput.type = "text";
+            nameInput.placeholder = "Name";
+            div.appendChild(nameInput);
+
+            var energyInput = document.createElement("input");
+            energyInput.type = "number";
+            energyInput.step = "any";
+            energyInput.placeholder = "Total Primary Energy Consumption";
+            div.appendChild(energyInput);
+
+            var areaInput = document.createElement("input");
+            areaInput.type = "number";
+            areaInput.step = "any";
+            areaInput.placeholder = "Squared meters";
+            div.appendChild(areaInput);
+
+            var variables = ["S/V coefficient", "External temperature", "Average air changes per hour",
+                            "Number of high energy electromedical machines", "Average number of operations per machine per year",
+                            "Number of beds in surgeries", "Average windows area", "Number of beds",
+                            "Internal Data Center", "Number of floors"];
+
+            variables.forEach(function(variable, index) {
+                var input = document.createElement("input");
+                input.type = "number";
+                input.step = "any";
+                input.id = variable + '_' + hospitalCount;
+                input.placeholder = variable;
+                div.appendChild(input);
+            });
+
+            container.appendChild(div);
+        }
+
+        // Funzione per calcolare la richiesta energetica
+        function calculateEnergyDemand() {
+            var container = document.getElementById("container");
+            var hospitals = container.children;
+
+            var thresholds = {
+                'S/V coefficient': 0.41,
+                'External temperature': 20,
+                'Average air changes per hour': 135,
+                'Number of high energy electromedical machines': 10,
+                'Average number of operations per machine per year': 2000,
+                'Number of beds in surgeries': 8.5,
+                'Average windows area': 40,
+                'Number of beds': 740,
+                'Internal Data Center': 0.5,
+                'Number of floors': 4
+            };
+
+            var energyDemands = [];
+
+            for (var i = 0; i < hospitals.length; i++) {
+                var hospital = hospitals[i];
+                var data = {};
+                var inputs = hospital.querySelectorAll('input');
+                data['Nome'] = inputs[0].value ? inputs[0].value : "Hospital " + (i + 1);
+                data['Total Primary Energy Consumption'] = parseFloat(inputs[1].value);
+                data['Metratura Quadrata'] = parseFloat(inputs[2].value);
+
+                for (var j = 3; j < inputs.length; j++) {
+                    var key = inputs[j].placeholder;
+                    var value = parseFloat(inputs[j].value);
+                    data[key] = value;
+                }
+
+                energyDemands.push(data);
+            }
+
+            // Creazione dei grafici
+            var chartContainer = document.getElementById('chartContainer');
+            chartContainer.innerHTML = ''; // Pulisce i grafici precedenti
+
+            var keys = Object.keys(thresholds);
+
+            keys.forEach(function(key) {
+                var canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 200;
+
+                var ctx = canvas.getContext('2d');
+                var labels = [];
+                var scores = [];
+
+                energyDemands.forEach(function(hospital) {
+                    labels.push(hospital['Nome']);
+                    scores.push(hospital[key]);
+                });
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: key,
+                            backgroundColor: colors,
+                            data: scores
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+                var chartDiv = document.createElement('div');
+                chartDiv.className = 'chart';
+                chartDiv.appendChild(canvas);
+                chartContainer.appendChild(chartDiv);
+            });
+
+            // Aggiungi grafici per Total Primary Energy Consumption e Metratura Quadrata
+            ['Total Primary Energy Consumption', 'Metratura Quadrata'].forEach(function(key) {
+                var canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 200;
+
+                var ctx = canvas.getContext('2d');
+                var labels = [];
+                var scores = [];
+
+                energyDemands.forEach(function(hospital) {
+                    labels.push(hospital['Nome']);
+                    scores.push(hospital[key]);
+                });
+
+                new Chart(ctx, {
+                    type:
+'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: key,
+                            backgroundColor: colors,
+                            data: scores
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+                var chartDiv = document.createElement('div');
+                chartDiv.className = 'chart';
+                chartDiv.appendChild(canvas);
+                chartContainer.appendChild(chartDiv);
+            });
+
+            // Calcola e visualizza la classe di domanda energetica e il KPI per ogni ospedale
+            var energyDemandClassDiv = document.getElementById('energyDemandClass');
+            energyDemandClassDiv.innerHTML = '';
+            energyDemands.forEach(function(hospital) {
+                var kpi = hospital['Total Primary Energy Consumption'] / hospital['Metratura Quadrata'];
+                var somma = 0;
+                var punti = [];
+                var pesi = [0.33, 0.33, 0.33, 0.5, 0.5, 1, 0.5, 0.5, 1, 1];
+                var w = [0.53, 0.53, 0.53, 0.17, 0.17, 0.11, 0.11, 0.11, 0.05, 0.03];
+
+                // Calcolo dei punti
+                Object.keys(hospital).forEach(function(key, index) {
+                    if (key !== 'Nome' && key !== 'Total Primary Energy Consumption' && key !== 'Metratura Quadrata') {
+                        var value = hospital[key];
+                        var soglia = thresholds[key];
+                        var punto = value > soglia ? 1 : 0;
+                        punti.push(punto);
+                    }
+                });
+
+                // Calcolo della somma
+                for (var i = 0; i < punti.length; i++) {
+                    somma += punti[i] * pesi[i];
+                }
+
+                // Calcolo dello score
+                var score = somma * w.reduce((a, b) => a + b, 0);
+
+                // Calcolo della classe di domanda energetica
+                var energyDemandClass = getEnergyDemandClass(score);
+
+                var hospitalInfo = document.createElement('div');
+                hospitalInfo.className = 'hospital-info';
+                hospitalInfo.innerHTML = '<strong>' + hospital['Nome'] + '</strong>: ' + energyDemandClass + ' (KPI: ' + kpi.toFixed(2) + ' TOE/M^2)';
+                energyDemandClassDiv.appendChild(hospitalInfo);
+            });
+        }
+
+        // Funzione per ottenere la classe di domanda energetica in base allo score
+        function getEnergyDemandClass(score) {
+            if (score >= 0.66) {
+                return "High energy demand";
+            } else if (score <= 0.33) {
+                return "Low energy demand";
+            } else {
+                return "Medium energy demand";
+            }
+        }
+    </script>
+</body>
+</html>
